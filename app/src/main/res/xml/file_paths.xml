@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Cached copies used to put images on the clipboard. -->
+    <cache-path name="clipboard" path="clipboard/" />
+</paths>
