@@ -1,3 +1,46 @@
 <resources>
     <string name="app_name">ClipShot</string>
+
+    <!-- Sections -->
+    <string name="section_permissions">Permissions</string>
+    <string name="section_folder">Watched folder</string>
+    <string name="section_delay">Notification delay</string>
+    <string name="section_watcher">Watcher</string>
+
+    <!-- Permissions -->
+    <string name="perm_all_files">All files access</string>
+    <string name="perm_notifications">Notifications</string>
+    <string name="perm_battery">Ignore battery optimizations</string>
+    <string name="granted">Granted</string>
+    <string name="not_granted">Not granted</string>
+    <string name="grant">Grant</string>
+
+    <!-- Folder -->
+    <string name="folder_path_label">Path</string>
+    <string name="choose_folder">Choose folder</string>
+    <string name="path_unresolved">Couldn\'t resolve that folder to a path. Pick a folder on internal storage.</string>
+
+    <!-- Delay -->
+    <string name="delay_label">Delay before notification</string>
+
+    <!-- Watcher -->
+    <string name="watcher_switch_label">Listen for screenshots</string>
+    <string name="watcher_needs_perms">Grant All files access and Notifications to enable.</string>
+
+    <!-- Notification channels -->
+    <string name="channel_watcher_name">Watcher status</string>
+    <string name="channel_watcher_desc">Ongoing notification while listening for screenshots.</string>
+    <string name="channel_alert_name">Screenshot alerts</string>
+    <string name="channel_alert_desc">Preview and actions for new screenshots.</string>
+
+    <!-- Notifications -->
+    <string name="watcher_title">ClipShot is watching</string>
+    <string name="watcher_text">Listening for new screenshots</string>
+    <string name="alert_title">Screenshot captured</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_copy_delete">Copy &amp; Delete</string>
+
+    <!-- Toasts -->
+    <string name="toast_deleted">Screenshot deleted</string>
+    <string name="toast_copied_deleted">Copied to clipboard and deleted</string>
 </resources>
