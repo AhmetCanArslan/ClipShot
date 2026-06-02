@@ -43,4 +43,27 @@
     <!-- Toasts -->
     <string name="toast_deleted">Screenshot deleted</string>
     <string name="toast_copied_deleted">Copied to clipboard and deleted</string>
+
+    <!-- Navigation -->
+    <string name="nav_notification">Notification</string>
+    <string name="nav_overlay">Overlay</string>
+
+    <!-- Overlay mode -->
+    <string name="section_overlay">Overlay</string>
+    <string name="perm_overlay">Draw over other apps</string>
+    <string name="overlay_switch_label">Show button on screenshot</string>
+    <string name="overlay_needs_perms">Grant All files access and Draw over other apps to enable.</string>
+    <string name="overlay_mode_hint">Shows a copy &amp; delete button next to the system screenshot preview. Enabling this turns off Notification mode.</string>
+    <string name="section_overlay_position">Button position</string>
+    <string name="overlay_x_label">From left</string>
+    <string name="overlay_y_label">From bottom</string>
+    <string name="overlay_duration_label">Time on screen</string>
+    <string name="overlay_test">Test position</string>
+    <string name="overlay_button_desc">Copy screenshot and delete</string>
+
+    <!-- Overlay foreground service -->
+    <string name="channel_overlay_name">Overlay status</string>
+    <string name="channel_overlay_desc">Ongoing notification while the screenshot overlay is active.</string>
+    <string name="overlay_title">ClipShot overlay active</string>
+    <string name="overlay_text">Showing a button when you screenshot</string>
 </resources>
