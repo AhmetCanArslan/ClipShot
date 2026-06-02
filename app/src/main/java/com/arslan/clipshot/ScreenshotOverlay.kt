@@ -7,7 +7,6 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 
 /**
@@ -34,6 +33,7 @@ class ScreenshotOverlay(private val context: Context) {
                 .alpha(1f).translationX(0f)
                 .setDuration(ENTER_MS)
                 .setInterpolator(DecelerateInterpolator())
+                .withLayer()
                 .start()
             return
         }
@@ -51,8 +51,8 @@ class ScreenshotOverlay(private val context: Context) {
             WindowManager.LayoutParams.WRAP_CONTENT,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            PixelFormat.TRANSPARENT
         ).apply {
             gravity = Gravity.START or Gravity.BOTTOM
             x = dpToPx(xDp)
@@ -71,6 +71,7 @@ class ScreenshotOverlay(private val context: Context) {
                     .alpha(1f).translationX(0f)
                     .setDuration(ENTER_MS)
                     .setInterpolator(DecelerateInterpolator())
+                    .withLayer()
                     .start()
             }
     }
@@ -79,13 +80,12 @@ class ScreenshotOverlay(private val context: Context) {
         val v = view ?: return
         view = null
         v.isClickable = false
-        v.animate().cancel()
-        // Slide back out to the left, following the dismissed preview.
         v.animate()
             .alpha(0f).translationX(-slidePx())
-            .setDuration(EXIT_MS)
-            .setInterpolator(AccelerateInterpolator())
-            .withEndAction { runCatching { wm.removeView(v) } }
+            .setDuration(ENTER_MS)
+            .setInterpolator(DecelerateInterpolator())
+            .withLayer()
+            .withEndAction { v.post { runCatching { wm.removeView(v) } } }
             .start()
     }
 
@@ -96,7 +96,6 @@ class ScreenshotOverlay(private val context: Context) {
 
     private companion object {
         const val ENTER_MS = 220L
-        const val EXIT_MS = 200L
         const val SLIDE_DP = 56
     }
 }
