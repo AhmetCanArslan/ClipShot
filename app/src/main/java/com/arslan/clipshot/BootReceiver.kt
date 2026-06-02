@@ -9,8 +9,13 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        if (Prefs(context).watcherEnabled) {
-            ScreenshotService.start(context.applicationContext)
+        val prefs = Prefs(context)
+        val app = context.applicationContext
+        if (prefs.watcherEnabled) {
+            ScreenshotService.start(app)
+        }
+        if (prefs.overlayEnabled) {
+            OverlayService.start(app)
         }
     }
 }
