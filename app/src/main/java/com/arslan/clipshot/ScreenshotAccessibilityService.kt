@@ -93,6 +93,6 @@ class ScreenshotAccessibilityService : AccessibilityService() {
     companion object {
         private const val SYSTEMUI = "com.android.systemui"
         private const val PREVIEW_ID = "com.android.systemui:id/screenshot_static"
-        private const val POLL_MS = 250L
+        private const val POLL_MS = 100L
     }
 }
