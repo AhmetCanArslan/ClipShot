@@ -24,7 +24,13 @@ class ScreenshotOverlay(private val context: Context) {
      * edge [yDp] from the bottom. [onTap] fires when the button is tapped.
      */
     fun show(xDp: Int, yDp: Int, onTap: () -> Unit) {
-        if (view != null) return
+        // Already (re)appearing: cancel any pending fade-out and fade back in.
+        view?.let { v ->
+            v.animate().cancel()
+            v.isClickable = true
+            v.animate().alpha(1f).setDuration(FADE_MS).start()
+            return
+        }
         val v = LayoutInflater.from(context).inflate(R.layout.overlay_button, null)
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -47,16 +53,31 @@ class ScreenshotOverlay(private val context: Context) {
             y = dpToPx(yDp)
         }
 
+        v.alpha = 0f
         v.setOnClickListener { onTap() }
         runCatching { wm.addView(v, params) }
-            .onSuccess { view = v }
+            .onSuccess {
+                view = v
+                v.animate().alpha(1f).setDuration(FADE_MS).start()
+            }
     }
 
     fun hide() {
-        view?.let { runCatching { wm.removeView(it) } }
+        val v = view ?: return
         view = null
+        v.isClickable = false
+        v.animate().cancel()
+        v.animate()
+            .alpha(0f)
+            .setDuration(FADE_MS)
+            .withEndAction { runCatching { wm.removeView(v) } }
+            .start()
     }
 
     private fun dpToPx(dp: Int): Int =
         (dp * context.resources.displayMetrics.density).toInt()
+
+    private companion object {
+        const val FADE_MS = 180L
+    }
 }
