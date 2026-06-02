@@ -19,19 +19,10 @@ class ScreenshotAccessibilityService : AccessibilityService() {
     private lateinit var prefs: Prefs
     private lateinit var overlay: ScreenshotOverlay
     private val main = Handler(Looper.getMainLooper())
-    private var shown = false
 
-    /** Once shown, poll the preview's presence so we hide as soon as it goes. */
-    private val poll = object : Runnable {
-        override fun run() {
-            if (!shown) return
-            if (!prefs.overlayEnabled || !isPreviewPresent()) {
-                hide()
-            } else {
-                main.postDelayed(this, POLL_MS)
-            }
-        }
-    }
+    private var previewVisible = false
+    private var absentStreak = 0
+    private val pollRunnable = Runnable { evaluate() }
 
     override fun onServiceConnected() {
         prefs = Prefs(this)
@@ -40,15 +31,47 @@ class ScreenshotAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!::prefs.isInitialized) return
-        if (!prefs.overlayEnabled) {
-            if (shown) hide()
-            return
-        }
-        // The appear trigger; dismissal is handled by [poll].
-        if (!shown && isPreviewPresent()) show()
+        evaluate()
     }
 
     override fun onInterrupt() {}
+
+    /**
+     * Re-evaluates whether the preview is on screen and shows/hides the button
+     * on transitions only. Disappearance must hold across [ABSENT_CONFIRM]
+     * consecutive checks: the accessibility node query flickers during the
+     * preview's own exit animation, and reacting to a single flaky "absent"
+     * would make the button blink (show/hide thrash) on the way out.
+     */
+    private fun evaluate() {
+        main.removeCallbacks(pollRunnable)
+        if (!prefs.overlayEnabled) {
+            setVisible(false)
+            return
+        }
+        if (isPreviewPresent()) {
+            absentStreak = 0
+            setVisible(true)
+            main.postDelayed(pollRunnable, POLL_MS) // keep watching for disappearance
+        } else if (previewVisible) {
+            absentStreak++
+            if (absentStreak >= ABSENT_CONFIRM) {
+                setVisible(false)
+            } else {
+                main.postDelayed(pollRunnable, POLL_MS) // confirm it really went away
+            }
+        }
+    }
+
+    private fun setVisible(visible: Boolean) {
+        if (visible == previewVisible) return
+        previewVisible = visible
+        if (visible) {
+            overlay.show(prefs.overlayX, prefs.overlayY) { onTap() }
+        } else {
+            overlay.hide()
+        }
+    }
 
     private fun isPreviewPresent(): Boolean {
         val ws = windows ?: return false
@@ -61,20 +84,9 @@ class ScreenshotAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun show() {
-        shown = true
-        main.post { overlay.show(prefs.overlayX, prefs.overlayY) { onTap() } }
-        main.postDelayed(poll, POLL_MS)
-    }
-
-    private fun hide() {
-        shown = false
-        main.removeCallbacks(poll)
-        main.post { overlay.hide() }
-    }
-
     private fun onTap() {
-        hide()
+        main.removeCallbacks(pollRunnable)
+        setVisible(false)
         val app = applicationContext
         Thread {
             val file = ScreenshotActions.latestScreenshot(app)
@@ -93,6 +105,7 @@ class ScreenshotAccessibilityService : AccessibilityService() {
     companion object {
         private const val SYSTEMUI = "com.android.systemui"
         private const val PREVIEW_ID = "com.android.systemui:id/screenshot_static"
-        private const val POLL_MS = 100L
+        private const val POLL_MS = 80L
+        private const val ABSENT_CONFIRM = 2
     }
 }
