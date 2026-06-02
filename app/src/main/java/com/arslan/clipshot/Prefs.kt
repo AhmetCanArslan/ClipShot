@@ -65,8 +65,9 @@ class Prefs(context: Context) {
         const val DEFAULT_DELAY = 2
         val DELAY_OPTIONS = listOf(0, 1, 2, 3, 5, 10)
 
-        // Defaults tuned for a Nothing Phone 2 in portrait (see plan).
-        const val DEFAULT_OVERLAY_X = 150
+        // Defaults tuned for a Nothing Phone 2 in portrait (see plan): the
+        // system preview pill's right edge sits at ~177dp, so clear it.
+        const val DEFAULT_OVERLAY_X = 190
         const val DEFAULT_OVERLAY_Y = 54
         const val OVERLAY_POSITION_MAX = 400
         const val DEFAULT_OVERLAY_DURATION = 4000
