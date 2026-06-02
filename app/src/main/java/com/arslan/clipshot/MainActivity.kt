@@ -1,7 +1,12 @@
 package com.arslan.clipshot
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,10 +30,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,15 +46,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -57,28 +65,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ClipShotTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ClipShotScreen(modifier = Modifier.padding(innerPadding))
-                }
+                ClipShotApp()
             }
         }
     }
 }
 
 @Composable
-fun ClipShotScreen(modifier: Modifier = Modifier) {
+fun ClipShotApp() {
     val context = LocalContext.current
     val prefs = remember { Prefs(context) }
+
+    var tab by rememberSaveable { mutableIntStateOf(0) }
 
     // Permission state, refreshed whenever the screen resumes.
     var permRefresh by remember { mutableIntStateOf(0) }
     val hasAllFiles = remember(permRefresh) { Permissions.hasAllFilesAccess() }
     val hasNotif = remember(permRefresh) { Permissions.hasNotificationPermission(context) }
+    val hasOverlay = remember(permRefresh) { Permissions.hasOverlayPermission(context) }
     val ignoresBattery = remember(permRefresh) { Permissions.isIgnoringBatteryOptimizations(context) }
-
-    var watchedPath by remember { mutableStateOf(prefs.watchedPath) }
-    var delaySeconds by remember { mutableIntStateOf(prefs.notificationDelaySeconds) }
-    var watcherEnabled by remember { mutableStateOf(prefs.watcherEnabled) }
 
     val lifecycleOwner = context.findActivity() as? LifecycleOwner
     DisposableEffect(lifecycleOwner) {
@@ -90,9 +95,104 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
         onDispose { lifecycle?.removeObserver(observer) }
     }
 
+    // Mode toggles are mutually exclusive: they share the same trigger event.
+    var watcherEnabled by remember { mutableStateOf(prefs.watcherEnabled) }
+    var overlayEnabled by remember { mutableStateOf(prefs.overlayEnabled) }
+
+    fun setWatcher(on: Boolean) {
+        watcherEnabled = on
+        prefs.watcherEnabled = on
+        if (on) {
+            if (overlayEnabled) {
+                overlayEnabled = false
+                prefs.overlayEnabled = false
+                OverlayService.stop(context)
+            }
+            ScreenshotService.start(context)
+        } else {
+            ScreenshotService.stop(context)
+        }
+    }
+
+    fun setOverlay(on: Boolean) {
+        overlayEnabled = on
+        prefs.overlayEnabled = on
+        if (on) {
+            if (watcherEnabled) {
+                watcherEnabled = false
+                prefs.watcherEnabled = false
+                ScreenshotService.stop(context)
+            }
+            OverlayService.start(context)
+        } else {
+            OverlayService.stop(context)
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = tab == 0,
+                    onClick = { tab = 0 },
+                    icon = {
+                        Icon(painterResource(R.drawable.ic_stat_screenshot), contentDescription = null)
+                    },
+                    label = { Text(stringRes(R.string.nav_notification)) }
+                )
+                NavigationBarItem(
+                    selected = tab == 1,
+                    onClick = { tab = 1 },
+                    icon = {
+                        Icon(painterResource(R.drawable.ic_overlay_copy), contentDescription = null)
+                    },
+                    label = { Text(stringRes(R.string.nav_overlay)) }
+                )
+            }
+        }
+    ) { innerPadding ->
+        when (tab) {
+            0 -> NotificationScreen(
+                modifier = Modifier.padding(innerPadding),
+                prefs = prefs,
+                hasAllFiles = hasAllFiles,
+                hasNotif = hasNotif,
+                ignoresBattery = ignoresBattery,
+                watcherEnabled = watcherEnabled,
+                onSetWatcher = ::setWatcher,
+                onRequestNotif = { permRefresh++ }
+            )
+            else -> OverlayScreen(
+                modifier = Modifier.padding(innerPadding),
+                prefs = prefs,
+                hasAllFiles = hasAllFiles,
+                hasOverlay = hasOverlay,
+                overlayEnabled = overlayEnabled,
+                onSetOverlay = ::setOverlay
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotificationScreen(
+    modifier: Modifier,
+    prefs: Prefs,
+    hasAllFiles: Boolean,
+    hasNotif: Boolean,
+    ignoresBattery: Boolean,
+    watcherEnabled: Boolean,
+    onSetWatcher: (Boolean) -> Unit,
+    onRequestNotif: () -> Unit
+) {
+    val context = LocalContext.current
+    var watchedPath by remember { mutableStateOf(prefs.watchedPath) }
+    var delaySeconds by remember { mutableIntStateOf(prefs.notificationDelaySeconds) }
+
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { permRefresh++ }
+    ) { onRequestNotif() }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -122,7 +222,6 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.headlineMedium
         )
 
-        // ---- Permissions ----
         SectionCard(title = stringRes(R.string.section_permissions)) {
             PermissionRow(
                 label = stringRes(R.string.perm_all_files),
@@ -148,7 +247,6 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
             ) { context.startActivity(Permissions.batteryOptimizationIntent(context)) }
         }
 
-        // ---- Watched folder ----
         SectionCard(title = stringRes(R.string.section_folder)) {
             OutlinedTextField(
                 value = watchedPath,
@@ -164,10 +262,12 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
             ) { Text(stringRes(R.string.choose_folder)) }
         }
 
-        // ---- Notification delay ----
         SectionCard(title = stringRes(R.string.section_delay)) {
-            DelayDropdown(
+            ValueDropdown(
+                label = stringRes(R.string.delay_label),
                 selected = delaySeconds,
+                options = Prefs.DELAY_OPTIONS,
+                display = { "$it s" },
                 onSelect = {
                     delaySeconds = it
                     prefs.notificationDelaySeconds = it
@@ -175,28 +275,13 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        // ---- Watcher toggle ----
         SectionCard(title = stringRes(R.string.section_watcher)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringRes(R.string.watcher_switch_label),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Switch(
-                    checked = watcherEnabled,
-                    enabled = canWatch,
-                    onCheckedChange = { checked ->
-                        watcherEnabled = checked
-                        prefs.watcherEnabled = checked
-                        if (checked) ScreenshotService.start(context)
-                        else ScreenshotService.stop(context)
-                    }
-                )
-            }
+            ToggleRow(
+                label = stringRes(R.string.watcher_switch_label),
+                checked = watcherEnabled,
+                enabled = canWatch,
+                onCheckedChange = onSetWatcher
+            )
             if (!canWatch) {
                 Text(
                     text = stringRes(R.string.watcher_needs_perms),
@@ -208,19 +293,155 @@ fun ClipShotScreen(modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
+private fun OverlayScreen(
+    modifier: Modifier,
+    prefs: Prefs,
+    hasAllFiles: Boolean,
+    hasOverlay: Boolean,
+    overlayEnabled: Boolean,
+    onSetOverlay: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    var overlayX by remember { mutableIntStateOf(prefs.overlayX) }
+    var overlayY by remember { mutableIntStateOf(prefs.overlayY) }
+    var durationMs by remember { mutableIntStateOf(prefs.overlayDurationMs) }
+
+    // Transient overlay used by the "Test position" button.
+    val tester = remember { ScreenshotOverlay(context) }
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    DisposableEffect(Unit) { onDispose { tester.hide() } }
+
+    val canOverlay = hasAllFiles && hasOverlay
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = stringRes(R.string.section_overlay),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        SectionCard(title = stringRes(R.string.section_permissions)) {
+            PermissionRow(
+                label = stringRes(R.string.perm_all_files),
+                granted = hasAllFiles
+            ) { context.startActivity(Permissions.allFilesAccessIntent(context)) }
+
+            HorizontalDivider()
+
+            PermissionRow(
+                label = stringRes(R.string.perm_overlay),
+                granted = hasOverlay
+            ) { context.startActivity(Permissions.overlayPermissionIntent(context)) }
+        }
+
+        SectionCard(title = stringRes(R.string.section_overlay)) {
+            ToggleRow(
+                label = stringRes(R.string.overlay_switch_label),
+                checked = overlayEnabled,
+                enabled = canOverlay,
+                onCheckedChange = onSetOverlay
+            )
+            Text(
+                text = stringRes(R.string.overlay_mode_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (canOverlay) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.error
+            )
+        }
+
+        SectionCard(title = stringRes(R.string.section_overlay_position)) {
+            PositionSlider(
+                label = stringRes(R.string.overlay_x_label),
+                value = overlayX,
+                onChange = { overlayX = it; prefs.overlayX = it }
+            )
+            PositionSlider(
+                label = stringRes(R.string.overlay_y_label),
+                value = overlayY,
+                onChange = { overlayY = it; prefs.overlayY = it }
+            )
+            ValueDropdown(
+                label = stringRes(R.string.overlay_duration_label),
+                selected = durationMs,
+                options = Prefs.OVERLAY_DURATION_OPTIONS,
+                display = { "${it / 1000} s" },
+                onSelect = {
+                    durationMs = it
+                    prefs.overlayDurationMs = it
+                }
+            )
+            OutlinedButton(
+                onClick = {
+                    if (canOverlay) {
+                        tester.hide()
+                        tester.show(overlayX, overlayY) { tester.hide() }
+                        mainHandler.postDelayed({ tester.hide() }, 1500L)
+                    }
+                },
+                enabled = canOverlay,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(stringRes(R.string.overlay_test)) }
+        }
+    }
+}
+
+@Composable
+private fun PositionSlider(label: String, value: Int, onChange: (Int) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "$label: $value dp",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.toInt()) },
+            valueRange = 0f..Prefs.OVERLAY_POSITION_MAX.toFloat()
+        )
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyLarge)
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DelayDropdown(selected: Int, onSelect: (Int) -> Unit) {
+private fun ValueDropdown(
+    label: String,
+    selected: Int,
+    options: List<Int>,
+    display: (Int) -> String,
+    onSelect: (Int) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = "$selected s",
+            value = display(selected),
             onValueChange = {},
             readOnly = true,
-            label = { Text(stringRes(R.string.delay_label)) },
+            label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -230,9 +451,9 @@ private fun DelayDropdown(selected: Int, onSelect: (Int) -> Unit) {
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            Prefs.DELAY_OPTIONS.forEach { option ->
+            options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text("$option s") },
+                    text = { Text(display(option)) },
                     onClick = {
                         onSelect(option)
                         expanded = false
