@@ -9,13 +9,10 @@ class BootReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        val prefs = Prefs(context)
-        val app = context.applicationContext
-        if (prefs.watcherEnabled) {
-            ScreenshotService.start(app)
-        }
-        if (prefs.overlayEnabled) {
-            OverlayService.start(app)
+        // Overlay mode is driven by the accessibility service, which the system
+        // restarts on its own; only the notification watcher needs restarting.
+        if (Prefs(context).watcherEnabled) {
+            ScreenshotService.start(context.applicationContext)
         }
     }
 }

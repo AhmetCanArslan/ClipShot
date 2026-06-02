@@ -83,6 +83,7 @@ fun ClipShotApp() {
     val hasAllFiles = remember(permRefresh) { Permissions.hasAllFilesAccess() }
     val hasNotif = remember(permRefresh) { Permissions.hasNotificationPermission(context) }
     val hasOverlay = remember(permRefresh) { Permissions.hasOverlayPermission(context) }
+    val hasAccessibility = remember(permRefresh) { Permissions.hasAccessibilityService(context) }
     val ignoresBattery = remember(permRefresh) { Permissions.isIgnoringBatteryOptimizations(context) }
 
     val lifecycleOwner = context.findActivity() as? LifecycleOwner
@@ -106,7 +107,6 @@ fun ClipShotApp() {
             if (overlayEnabled) {
                 overlayEnabled = false
                 prefs.overlayEnabled = false
-                OverlayService.stop(context)
             }
             ScreenshotService.start(context)
         } else {
@@ -114,18 +114,15 @@ fun ClipShotApp() {
         }
     }
 
+    // Overlay mode is driven by the accessibility service watching the system
+    // preview; the toggle just records intent (and enforces mutual exclusivity).
     fun setOverlay(on: Boolean) {
         overlayEnabled = on
         prefs.overlayEnabled = on
-        if (on) {
-            if (watcherEnabled) {
-                watcherEnabled = false
-                prefs.watcherEnabled = false
-                ScreenshotService.stop(context)
-            }
-            OverlayService.start(context)
-        } else {
-            OverlayService.stop(context)
+        if (on && watcherEnabled) {
+            watcherEnabled = false
+            prefs.watcherEnabled = false
+            ScreenshotService.stop(context)
         }
     }
 
@@ -168,6 +165,7 @@ fun ClipShotApp() {
                 prefs = prefs,
                 hasAllFiles = hasAllFiles,
                 hasOverlay = hasOverlay,
+                hasAccessibility = hasAccessibility,
                 overlayEnabled = overlayEnabled,
                 onSetOverlay = ::setOverlay
             )
@@ -299,20 +297,20 @@ private fun OverlayScreen(
     prefs: Prefs,
     hasAllFiles: Boolean,
     hasOverlay: Boolean,
+    hasAccessibility: Boolean,
     overlayEnabled: Boolean,
     onSetOverlay: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     var overlayX by remember { mutableIntStateOf(prefs.overlayX) }
     var overlayY by remember { mutableIntStateOf(prefs.overlayY) }
-    var durationMs by remember { mutableIntStateOf(prefs.overlayDurationMs) }
 
     // Transient overlay used by the "Test position" button.
     val tester = remember { ScreenshotOverlay(context) }
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     DisposableEffect(Unit) { onDispose { tester.hide() } }
 
-    val canOverlay = hasAllFiles && hasOverlay
+    val canOverlay = hasAllFiles && hasOverlay && hasAccessibility
 
     Column(
         modifier = modifier
@@ -338,6 +336,13 @@ private fun OverlayScreen(
                 label = stringRes(R.string.perm_overlay),
                 granted = hasOverlay
             ) { context.startActivity(Permissions.overlayPermissionIntent(context)) }
+
+            HorizontalDivider()
+
+            PermissionRow(
+                label = stringRes(R.string.perm_accessibility),
+                granted = hasAccessibility
+            ) { context.startActivity(Permissions.accessibilitySettingsIntent()) }
         }
 
         SectionCard(title = stringRes(R.string.section_overlay)) {
@@ -365,16 +370,6 @@ private fun OverlayScreen(
                 label = stringRes(R.string.overlay_y_label),
                 value = overlayY,
                 onChange = { overlayY = it; prefs.overlayY = it }
-            )
-            ValueDropdown(
-                label = stringRes(R.string.overlay_duration_label),
-                selected = durationMs,
-                options = Prefs.OVERLAY_DURATION_OPTIONS,
-                display = { "${it / 1000} s" },
-                onSelect = {
-                    durationMs = it
-                    prefs.overlayDurationMs = it
-                }
             )
             OutlinedButton(
                 onClick = {

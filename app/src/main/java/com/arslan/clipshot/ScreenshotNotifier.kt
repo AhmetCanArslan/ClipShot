@@ -22,10 +22,8 @@ object ScreenshotNotifier {
 
     const val CHANNEL_WATCHER = "clipshot_watcher"
     const val CHANNEL_ALERT = "clipshot_alert"
-    const val CHANNEL_OVERLAY = "clipshot_overlay"
 
     const val WATCHER_NOTIFICATION_ID = 1
-    const val OVERLAY_NOTIFICATION_ID = 2
 
     const val ACTION_DELETE = "com.arslan.clipshot.action.DELETE"
     const val ACTION_COPY_DELETE = "com.arslan.clipshot.action.COPY_DELETE"
@@ -51,15 +49,8 @@ object ScreenshotNotifier {
             NotificationManager.IMPORTANCE_HIGH
         ).apply { description = context.getString(R.string.channel_alert_desc) }
 
-        val overlay = NotificationChannel(
-            CHANNEL_OVERLAY,
-            context.getString(R.string.channel_overlay_name),
-            NotificationManager.IMPORTANCE_LOW
-        ).apply { description = context.getString(R.string.channel_overlay_desc) }
-
         nm.createNotificationChannel(watcher)
         nm.createNotificationChannel(alert)
-        nm.createNotificationChannel(overlay)
     }
 
     fun buildWatcherNotification(context: Context): Notification =
@@ -67,16 +58,6 @@ object ScreenshotNotifier {
             .setSmallIcon(R.drawable.ic_stat_screenshot)
             .setContentTitle(context.getString(R.string.watcher_title))
             .setContentText(context.getString(R.string.watcher_text))
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .build()
-
-    fun buildOverlayNotification(context: Context): Notification =
-        NotificationCompat.Builder(context, CHANNEL_OVERLAY)
-            .setSmallIcon(R.drawable.ic_stat_screenshot)
-            .setContentTitle(context.getString(R.string.overlay_title))
-            .setContentText(context.getString(R.string.overlay_text))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
