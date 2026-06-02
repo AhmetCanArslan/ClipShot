@@ -45,6 +45,16 @@ object Permissions {
             true
         }
 
+    /** Draw over other apps — required to show the floating overlay button. */
+    fun hasOverlayPermission(context: Context): Boolean =
+        Settings.canDrawOverlays(context)
+
+    fun overlayPermissionIntent(context: Context): Intent =
+        Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.fromParts("package", context.packageName, null)
+        )
+
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         return pm.isIgnoringBatteryOptimizations(context.packageName)
