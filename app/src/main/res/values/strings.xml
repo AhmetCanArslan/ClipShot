@@ -51,19 +51,17 @@
     <!-- Overlay mode -->
     <string name="section_overlay">Overlay</string>
     <string name="perm_overlay">Draw over other apps</string>
+    <string name="perm_accessibility">Screenshot detection (Accessibility)</string>
     <string name="overlay_switch_label">Show button on screenshot</string>
-    <string name="overlay_needs_perms">Grant All files access and Draw over other apps to enable.</string>
-    <string name="overlay_mode_hint">Shows a copy &amp; delete button next to the system screenshot preview. Enabling this turns off Notification mode.</string>
+    <string name="overlay_needs_perms">Grant all three permissions above to enable.</string>
+    <string name="overlay_mode_hint">Shows a copy &amp; delete button next to the system screenshot preview, for as long as the preview is on screen. Enabling this turns off Notification mode.</string>
     <string name="section_overlay_position">Button position</string>
     <string name="overlay_x_label">From left</string>
     <string name="overlay_y_label">From bottom</string>
-    <string name="overlay_duration_label">Time on screen</string>
     <string name="overlay_test">Test position</string>
     <string name="overlay_button_desc">Copy screenshot and delete</string>
 
-    <!-- Overlay foreground service -->
-    <string name="channel_overlay_name">Overlay status</string>
-    <string name="channel_overlay_desc">Ongoing notification while the screenshot overlay is active.</string>
-    <string name="overlay_title">ClipShot overlay active</string>
-    <string name="overlay_text">Showing a button when you screenshot</string>
+    <!-- Accessibility service -->
+    <string name="accessibility_label">ClipShot screenshot detection</string>
+    <string name="accessibility_desc">Lets ClipShot detect when the system screenshot preview appears and disappears, so the overlay button can follow it. ClipShot does not read screen content.</string>
 </resources>

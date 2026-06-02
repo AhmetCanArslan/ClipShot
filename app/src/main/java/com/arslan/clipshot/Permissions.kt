@@ -1,6 +1,7 @@
 package com.arslan.clipshot
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -54,6 +55,21 @@ object Permissions {
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.fromParts("package", context.packageName, null)
         )
+
+    /** Whether our accessibility service (the screenshot-preview watcher) is enabled. */
+    fun hasAccessibilityService(context: Context): Boolean {
+        val expected = ComponentName(context, ScreenshotAccessibilityService::class.java)
+        val enabled = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        return enabled.split(':').any {
+            ComponentName.unflattenFromString(it) == expected
+        }
+    }
+
+    fun accessibilitySettingsIntent(): Intent =
+        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
 
     fun isIgnoringBatteryOptimizations(context: Context): Boolean {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager

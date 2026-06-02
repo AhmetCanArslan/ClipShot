@@ -52,6 +52,37 @@ object ScreenshotActions {
         }
     }
 
+    /**
+     * Returns the most-recently-added screenshot file, if it was added within
+     * [withinSeconds]. Used by the overlay button to resolve which file to act
+     * on at tap time.
+     */
+    fun latestScreenshot(context: Context, withinSeconds: Long = 30): File? {
+        val projection = arrayOf(
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_ADDED
+        )
+        val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
+        val args = arrayOf("%Screenshot%")
+        val sort = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        return runCatching {
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection, selection, args, sort
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    val data = c.getString(0)
+                    val date = c.getLong(1)
+                    val nowSec = System.currentTimeMillis() / 1000
+                    if (!data.isNullOrEmpty() && nowSec - date <= withinSeconds) {
+                        return@use File(data)
+                    }
+                }
+                null
+            }
+        }.getOrNull()
+    }
+
     /** Deletes the raw file and removes any matching MediaStore entry. */
     fun delete(context: Context, file: File) {
         val path = file.absolutePath
